@@ -3,333 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Оплата пополнения GetTG</title>
-    <!-- Подключаем оригинальный стиль ЮKassa (он всё равно нужен для работы формы) -->
+    <title>Оплата GetTG</title>
     <link rel="stylesheet" href="https://yookassa.ru/integration/simplepay/css/yookassa_construct_form.css?v=1.34.0">
     <style>
-        /* Дополнительные стили для улучшения внешнего вида */
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            background-image: radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%), 
+                              radial-gradient(at 100% 100%, rgba(79, 70, 229, 0.05) 0px, transparent 50%);
             margin: 0;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 16px;
+            padding: 20px;
+        }
+
+        .payment-card {
+            background: var(--card-bg);
+            max-width: 480px;
+            width: 100%;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            padding: 40px;
             box-sizing: border-box;
         }
-        .payment-container {
-            max-width: 600px;
-            width: 100%;
-            background-color: white;
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .payment-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 24px 32px;
+
+        .header {
             text-align: center;
+            margin-bottom: 32px;
         }
-        .payment-header h1 {
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--text-main);
             margin: 0 0 8px 0;
-            font-size: 28px;
-            font-weight: 600;
+            letter-spacing: -0.5px;
         }
-        .payment-header p {
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 15px;
             margin: 0;
-            opacity: 0.9;
-            font-size: 16px;
         }
-        .payment-content {
-            padding: 32px;
-        }
-        .amount-selector {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-        .amount-selector h3 {
-            margin: 0 0 16px 0;
-            color: #1e293b;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .amount-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-        .amount-btn {
-            flex: 1 1 auto;
-            min-width: 80px;
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px 8px;
-            font-size: 20px;
-            font-weight: 600;
-            color: #1e293b;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .amount-btn:hover {
-            border-color: #667eea;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
-        }
-        .amount-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-color: transparent;
-            color: white;
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-        }
-        .selected-amount-info {
+
+        /* Стили слайдера */
+        .range-container {
+            margin-bottom: 32px;
             text-align: center;
-            font-size: 14px;
-            color: #64748b;
-            margin-top: 8px;
         }
-        .selected-amount-info strong {
-            color: #1e293b;
-            font-size: 16px;
+
+        .amount-display {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .ym-customer-info {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 24px;
+
+        .amount-display span {
+            font-size: 24px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .modern-range {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            margin: 20px 0;
+        }
+
+        .modern-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border: 4px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .modern-range::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Инпуты */
+        .input-group {
             margin-bottom: 24px;
         }
-        .ym-customer-info .ym-block-title {
-            color: #1e293b;
-            font-size: 18px;
+
+        .input-label {
+            display: block;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 16px;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            padding-left: 4px;
         }
-        .ym-customer-info .ym-input {
+
+        .custom-input {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            padding: 14px 18px;
+            border: 2px solid #f1f5f9;
+            background: #f8fafc;
+            border-radius: 16px;
             font-size: 16px;
-            transition: border-color 0.2s ease;
+            transition: all 0.3s;
             box-sizing: border-box;
         }
-        .ym-customer-info .ym-input:focus {
+
+        .custom-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
         }
-        .payment-footer {
-            margin-top: 24px;
-        }
-        .ym-payment-btn-block {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 24px;
-        }
-        .ym-btn-pay {
+
+        /* Кнопка */
+        .pay-button {
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 12px;
-            padding: 16px 24px;
+            background: var(--primary);
             color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 18px;
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pay-button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
+        }
+
+        .pay-button:active {
+            transform: translateY(0);
+        }
+
+        .footer-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
         }
-        .ym-btn-pay:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+
+        .secure-tag {
+            font-size: 12px;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
         }
-        .ym-price-output {
-            background: rgba(255,255,255,0.2);
-            padding: 6px 12px;
-            border-radius: 8px;
-        }
-        .ym-logo {
-            margin-top: 16px;
-            opacity: 0.7;
-        }
-        .hint {
-            font-size: 14px;
-            color: #64748b;
-            text-align: center;
-            margin-top: 16px;
-        }
-        .hint i {
-            font-style: normal;
-            background: #e2e8f0;
-            padding: 2px 8px;
-            border-radius: 12px;
-            color: #1e293b;
-        }
-        /* Скрываем ненужные элементы оригинальной формы */
-        .ym-products {
-            display: none;
-        }
-        .ym-input-icon-rub {
-            display: none !important;
-        }
+
+        /* Скрытие лишнего */
+        .ym-products, .ym-input-icon-rub, .ym-payment-btn-block { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="payment-container">
-        <div class="payment-header">
-            <h1>💰 Пополнение GetTG</h1>
-            <p>Мгновенное зачисление • Без комиссии</p>
-        </div>
-        
-        <div class="payment-content">
-            <!-- Блок выбора суммы -->
-            <div class="amount-selector">
-                <h3>Выберите сумму пополнения:</h3>
-                <div class="amount-buttons" id="amountButtons">
-                    <button class="amount-btn" data-amount="60">60 ₽</button>
-                    <button class="amount-btn" data-amount="120">120 ₽</button>
-                    <button class="amount-btn" data-amount="180">180 ₽</button>
-                </div>
-                <div class="selected-amount-info">
-                    Выбрано: <strong id="selectedAmount">60 ₽</strong>
-                </div>
-            </div>
 
-            <!-- Оригинальная форма ЮKassa (адаптированная) -->
-            <form class="yoomoney-payment-form" action="https://yookassa.ru/integration/simplepay/payment" method="post" accept-charset="utf-8">
-                <!-- Скрытые поля товара (будут обновляться через JS) -->
-                <div class="ym-products" style="display: none;">
-                    <div class="ym-product">
-                        <input type="hidden" name="text" id="productText" value="Пополнение GetTG">
-                        <input type="hidden" name="price" id="productPrice" value="60">
-                        <input type="hidden" name="quantity" value="1">
-                        <input type="hidden" name="paymentSubjectType" value="payment">
-                        <input type="hidden" name="paymentMethodType" value="full_prepayment">
-                        <input type="hidden" name="tax" value="1">
-                    </div>
-                </div>
-                
-                <input type="hidden" name="ym_merchant_receipt" value="">
-                
-                <!-- Блок с email (покупатель) -->
-                <div class="ym-customer-info">
-                    <div class="ym-block-title">📧 Получатель чека</div>
-                    <input class="ym-input" name="email" placeholder="Ваш email или телефон для чека" type="text" required>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
-                        *Чек придёт на этот адрес
-                    </div>
-                </div>
-
-                <input name="customerNumber" type="hidden" value="Пополнение GetTG">
-                
-                <!-- Блок оплаты -->
-                <div class="payment-footer">
-                    <div class="ym-payment-btn-block">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <span style="font-weight: 500; color: #1e293b;">Итого к оплате:</span>
-                            <span style="font-size: 24px; font-weight: 700; color: #1e293b;" id="displaySum">60 ₽</span>
-                        </div>
-                        <input type="hidden" name="sum" id="sumInput" value="60">
-                        <button type="submit" class="ym-btn-pay">
-                            <span>💳 Оплатить</span>
-                            <span class="ym-price-output" id="buttonSum">60 ₽</span>
-                        </button>
-                        <img src="https://yookassa.ru/integration/simplepay/img/iokassa-gray.svg" class="ym-logo" width="114" height="27" alt="ЮKassa">
-                    </div>
-                </div>
-
-                <!-- shopId (замените на свой!) -->
-                <input name="shopId" type="hidden" value="1301126">
-            </form>
-
-            <div class="hint">
-                <i>🔒 Безопасная оплата через ЮKassa</i> • <i>⚡ Мгновенно</i>
-            </div>
-        </div>
+<div class="payment-card">
+    <div class="header">
+        <h1>Пополнение GetTG</h1>
+        <p>Средства зачисляются автоматически</p>
     </div>
 
-    <!-- Подключаем скрипт ЮKassa (обязательно для работы формы) -->
-    <script src="https://yookassa.ru/integration/simplepay/js/yookassa_construct_form.js?v=1.34.0"></script>
-    
-    <!-- Наш скрипт для управления выбором суммы -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const amountButtons = document.querySelectorAll('.amount-btn');
-            const productPriceInput = document.getElementById('productPrice');
-            const sumInput = document.getElementById('sumInput');
-            const displaySumEl = document.getElementById('displaySum');
-            const buttonSumEl = document.getElementById('buttonSum');
-            const selectedAmountEl = document.getElementById('selectedAmount');
+    <form class="yoomoney-payment-form" action="https://yookassa.ru/integration/simplepay/payment" method="post">
+        
+        <div class="range-container">
+            <div class="amount-display" id="valDisplay">60 <span>₽</span></div>
+            <input type="range" min="60" max="5000" step="10" value="60" class="modern-range" id="amountSlider">
+            <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 12px;">
+                <span>60 ₽</span>
+                <span>5 000 ₽</span>
+            </div>
+        </div>
 
-            // Функция обновления всех полей с суммой
-            function updateAmount(amount) {
-                // Обновляем скрытые поля
-                if (productPriceInput) productPriceInput.value = amount;
-                if (sumInput) sumInput.value = amount;
-                
-                // Обновляем отображаемые суммы
-                if (displaySumEl) displaySumEl.textContent = amount + ' ₽';
-                if (buttonSumEl) buttonSumEl.textContent = amount + ' ₽';
-                if (selectedAmountEl) selectedAmountEl.textContent = amount + ' ₽';
+        <div class="input-group">
+            <label class="input-label">Email для чека</label>
+            <input class="custom-input" name="email" type="email" placeholder="example@mail.ru" required>
+        </div>
 
-                // Также обновляем data-price в блоке товара (на всякий случай)
-                const priceSpan = document.querySelector('.ym-product-price');
-                if (priceSpan) {
-                    priceSpan.setAttribute('data-price', amount);
-                    priceSpan.innerHTML = amount + ',00&nbsp;₽';
-                }
-            }
+        <input type="hidden" name="shopId" value="1301126">
+        <input type="hidden" name="sum" id="sumInput" value="60">
+        <input type="hidden" name="customerNumber" value="GetTG_Refill">
+        
+        <div class="ym-products">
+            <input type="hidden" name="text" value="Пополнение баланса GetTG">
+            <input type="hidden" name="price" id="priceInput" value="60">
+            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="tax" value="1">
+        </div>
 
-            // Обработчики для кнопок выбора суммы
-            amountButtons.forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Убираем активный класс у всех кнопок
-                    amountButtons.forEach(b => b.classList.remove('active'));
-                    
-                    // Добавляем активный класс текущей кнопке
-                    this.classList.add('active');
-                    
-                    // Получаем сумму из data-атрибута
-                    const amount = this.getAttribute('data-amount');
-                    
-                    // Обновляем все поля
-                    updateAmount(amount);
-                });
-            });
+        <button type="submit" class="pay-button">
+            Оплатить пополнение
+        </button>
 
-            // Активируем первую кнопку (60 рублей) по умолчанию
-            if (amountButtons.length > 0) {
-                amountButtons[0].classList.add('active');
-            }
+        <div class="footer-info">
+            <div class="secure-tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Secure
+            </div>
+            <img src="https://yookassa.ru/integration/simplepay/img/iokassa-gray.svg" width="80" alt="ЮKassa">
+        </div>
+    </form>
+</div>
 
-            // Если вдруг в форме есть поле для ручного ввода суммы, скрываем его
-            const manualSumInput = document.querySelector('.ym-input-icon-rub');
-            if (manualSumInput) {
-                manualSumInput.style.display = 'none';
-            }
+<script src="https://yookassa.ru/integration/simplepay/js/yookassa_construct_form.js?v=1.34.0"></script>
+<script>
+    const slider = document.getElementById('amountSlider');
+    const valDisplay = document.getElementById('valDisplay');
+    const sumInput = document.getElementById('sumInput');
+    const priceInput = document.getElementById('priceInput');
 
-            // Для совместимости с оригинальным скриптом ЮKassa
-            // Отслеживаем изменения в скрытых полях, если нужно
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
-                        // Если оригинальный скрипт меняет сумму, можно синхронизировать
-                        // Но мы сами всё контролируем
-                    }
-                });
-            });
-        });
-    </script>
+    slider.oninput = function() {
+        const value = this.value;
+        valDisplay.innerHTML = `${value} <span>₽</span>`;
+        sumInput.value = value;
+        priceInput.value = value;
+    }
+</script>
+
 </body>
 </html>
