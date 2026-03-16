@@ -155,7 +155,14 @@
             opacity: 0.5;
         }
 
-        .ym-products, .ym-input-icon-rub, .ym-payment-btn-block { display: none !important; }
+        /* ВАЖНО: больше НЕ скрываем эти элементы, а делаем их прозрачными/невидимыми, но сохраняем в потоке */
+        .ym-products, .ym-input-icon-rub, .ym-payment-btn-block { 
+            opacity: 0 !important;
+            position: absolute !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +174,24 @@
 
     <form class="yoomoney-payment-form" action="https://yookassa.ru/integration/simplepay/payment" method="post" id="payForm">
         
+        <!-- Товары (обязательно для скрипта ЮKassa) -->
+        <div class="ym-products">
+            <div class="ym-product">
+                <input type="hidden" name="text" value="Пополнение GetTG">
+                <input type="hidden" name="price" id="priceInput" value="60">
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="paymentSubjectType" value="payment">
+                <input type="hidden" name="paymentMethodType" value="full_prepayment">
+                <input type="hidden" name="tax" value="1">
+            </div>
+        </div>
+        
+        <input type="hidden" name="ym_merchant_receipt" value="">
+        <input type="hidden" name="shopId" value="1301126"> <!-- ЗАМЕНИТЕ НА СВОЙ SHOPID -->
+        <input type="hidden" name="sum" id="sumInput" value="60">
+        <input type="hidden" name="customerNumber" value="GetTG_User">
+
+        <!-- Ваши элементы дизайна -->
         <div class="presets">
             <button type="button" class="preset-btn active" data-val="60">60 ₽</button>
             <button type="button" class="preset-btn" data-val="100">100 ₽</button>
@@ -178,22 +203,24 @@
             <span class="min-sum-hint">Мин. сумма пополнения — 60 ₽</span>
         </div>
 
-        <input type="hidden" name="shopId" value="1301126">
-        <input type="hidden" name="sum" id="sumInput" value="60">
-        <input type="hidden" name="customerNumber" value="GetTG_User">
-        <div class="ym-products">
-            <input type="hidden" name="price" id="priceInput" value="60">
-            <input type="hidden" name="text" value="Пополнение баланса">
-            <input type="hidden" name="quantity" value="1">
-            <input type="hidden" name="tax" value="1">
-        </div>
-
         <div class="field-group">
             <label>E-mail для чека</label>
             <input type="email" name="email" class="email-input" placeholder="mail@example.com" required>
         </div>
 
-        <button type="submit" class="btn-pay" id="submitBtn">Оплатить</button>
+        <!-- Блок оплаты (оригинальный, но скрытый визуально) -->
+        <div class="ym-payment-btn-block ym-before-line ym-align-space-between">
+            <div class="ym-input-icon-rub">
+                <input name="sum_orig" placeholder="0.00" class="ym-input ym-sum-input ym-required-input" type="number" step="any" value="60">
+            </div>
+            <button type="submit" class="ym-btn-pay ym-result-price">
+                <span class="ym-text-crop">Оплатить</span>
+                <span class="ym-price-output">60,00&nbsp;₽</span>
+            </button>
+        </div>
+
+        <!-- ВАША кнопка (она будет нажиматься пользователем) -->
+        <button type="button" class="btn-pay" id="customSubmitBtn">Оплатить</button>
 
         <div class="safe-info">
             <img src="https://yookassa.ru/integration/simplepay/img/iokassa-gray.svg" width="60" alt="ЮKassa">
@@ -208,10 +235,22 @@
     const manualInput = document.getElementById('manualAmount');
     const sumInput = document.getElementById('sumInput');
     const priceInput = document.getElementById('priceInput');
+    
+    // Находим скрытые элементы для синхронизации
+    const origSumInput = document.querySelector('.ym-sum-input');
+    const origPriceOutput = document.querySelector('.ym-price-output');
 
     function syncAmount(val) {
+        // Приводим к числу
+        val = parseFloat(val) || 0;
+        
+        // Обновляем скрытые поля
         sumInput.value = val;
         priceInput.value = val;
+        
+        // Обновляем поля в оригинальном блоке ЮKassa
+        if (origSumInput) origSumInput.value = val.toFixed(2);
+        if (origPriceOutput) origPriceOutput.textContent = val.toFixed(2).replace('.', ',') + '&nbsp;₽';
         
         // Валидация цвета
         if (val < 60) {
@@ -225,33 +264,60 @@
         btn.addEventListener('click', () => {
             buttons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            const val = btn.getAttribute('data-val');
+            const val = parseInt(btn.getAttribute('data-val'));
             manualInput.value = val;
             syncAmount(val);
         });
     });
 
     manualInput.addEventListener('input', (e) => {
-        let val = e.target.value;
+        let val = parseFloat(e.target.value) || 0;
         buttons.forEach(b => b.classList.remove('active'));
         
         // Подсвечиваем кнопку, если введено значение пресета
         buttons.forEach(b => {
-            if(b.getAttribute('data-val') === val) b.classList.add('active');
+            if(parseInt(b.getAttribute('data-val')) === val) b.classList.add('active');
         });
         
         syncAmount(val);
     });
 
-    // Авто-исправление при выходе из поля или отправке
-    document.getElementById('payForm').onsubmit = function() {
+    // Обработка клика на вашу кастомную кнопку
+    document.getElementById('customSubmitBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Проверка минимальной суммы
         if (manualInput.value < 60) {
             manualInput.value = 60;
             syncAmount(60);
-            return false; // Даем пользователю увидеть исправление
+            alert('Минимальная сумма — 60 рублей');
+            return;
         }
-        return true;
-    };
+        
+        // Проверка email
+        const email = document.querySelector('input[name="email"]').value;
+        if (!email || !email.includes('@')) {
+            alert('Введите корректный email');
+            return;
+        }
+        
+        // Находим оригинальную кнопку оплаты и кликаем на неё
+        const originalPayBtn = document.querySelector('.ym-btn-pay');
+        if (originalPayBtn) {
+            originalPayBtn.click();
+        } else {
+            // Если не нашли, просто отправляем форму
+            document.getElementById('payForm').submit();
+        }
+    });
+
+    // Авто-исправление при выходе из поля
+    manualInput.addEventListener('blur', function() {
+        if (this.value < 60) {
+            this.value = 60;
+            syncAmount(60);
+        }
+    });
 </script>
 
 </body>
