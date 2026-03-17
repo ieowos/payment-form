@@ -158,7 +158,6 @@
             opacity: 0.5;
         }
 
-        /* Скрываем оригинальные элементы, но оставляем их в DOM */
         .ym-products, .ym-input-icon-rub, .ym-payment-btn-block {
             opacity: 0;
             position: absolute;
@@ -176,7 +175,6 @@
 
         <form class="yoomoney-payment-form" action="https://yookassa.ru/integration/simplepay/payment" method="post" id="payForm">
             
-            <!-- Скрытые поля товара (обязательно для ЮKassa) -->
             <div class="ym-products">
                 <div class="ym-product">
                     <input type="hidden" name="text" value="Пополнение GetTG">
@@ -189,11 +187,15 @@
             </div>
             
             <input type="hidden" name="ym_merchant_receipt" value="">
-            <input type="hidden" name="shopId" value="1301126">  <!-- ЗАМЕНИТЕ НА ВАШ shopId -->
+            <input type="hidden" name="shopId" value="1301126">
             <input type="hidden" name="sum" id="sumInput" value="60">
+            
+            <!-- ВАЖНО: Поле для Telegram ID -->
             <input type="hidden" name="customerNumber" id="customerNumberInput" value="">
+            
+            <!-- Дополнительное поле metadata для надёжности -->
+            <input type="hidden" name="metadata" id="metadataInput" value="">
 
-            <!-- Блок выбора суммы -->
             <div class="presets">
                 <button type="button" class="preset-btn active" data-val="60">60 ₽</button>
                 <button type="button" class="preset-btn" data-val="100">100 ₽</button>
@@ -210,7 +212,6 @@
                 <input type="email" name="email" class="email-input" placeholder="mail@example.com" required>
             </div>
 
-            <!-- Оригинальный блок оплаты ЮKassa (скрыт) -->
             <div class="ym-payment-btn-block ym-before-line ym-align-space-between">
                 <div class="ym-input-icon-rub">
                     <input name="sum_orig" placeholder="0.00" class="ym-input ym-sum-input ym-required-input" type="number" step="any" value="60">
@@ -221,7 +222,6 @@
                 </button>
             </div>
 
-            <!-- Ваша красивая кнопка -->
             <button type="button" class="btn-pay" id="customSubmitBtn">💳 Оплатить</button>
 
             <div class="safe-info">
@@ -233,37 +233,37 @@
 
     <script src="https://yookassa.ru/integration/simplepay/js/yookassa_construct_form.js?v=1.34.0"></script>
     <script>
-        // Получаем user_id из URL (например, ?user_id=123456789)
+        // Получаем параметры из URL
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('user_id');
+        
         if (userId) {
+            // Устанавливаем customerNumber
             document.getElementById('customerNumberInput').value = userId;
+            
+            // Также устанавливаем metadata для надёжности
+            const metadata = JSON.stringify({ user_id: userId });
+            document.getElementById('metadataInput').value = metadata;
+            
             console.log('Telegram ID установлен:', userId);
+        } else {
+            console.warn('user_id не найден в URL');
         }
 
-        // Элементы для работы с суммой
         const buttons = document.querySelectorAll('.preset-btn');
         const manualInput = document.getElementById('manualAmount');
         const sumInput = document.getElementById('sumInput');
         const priceInput = document.getElementById('priceInput');
         
-        // Находим скрытые элементы для синхронизации
         const origSumInput = document.querySelector('.ym-sum-input');
         const origPriceOutput = document.querySelector('.ym-price-output');
 
         function syncAmount(val) {
-            // Приводим к числу
             val = parseFloat(val) || 0;
-            
-            // Обновляем скрытые поля
             sumInput.value = val;
             priceInput.value = val;
-            
-            // Обновляем поля в оригинальном блоке ЮKassa
             if (origSumInput) origSumInput.value = val.toFixed(2);
             if (origPriceOutput) origPriceOutput.innerHTML = val.toFixed(2).replace('.', ',') + '&nbsp;₽';
-            
-            // Валидация цвета
             if (val < 60) {
                 manualInput.classList.add('invalid');
             } else {
@@ -271,7 +271,6 @@
             }
         }
 
-        // Обработчики для кнопок пресетов
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
                 buttons.forEach(b => b.classList.remove('active'));
@@ -282,20 +281,15 @@
             });
         });
 
-        // Обработчик ручного ввода
         manualInput.addEventListener('input', (e) => {
             let val = parseFloat(e.target.value) || 0;
             buttons.forEach(b => b.classList.remove('active'));
-            
-            // Подсвечиваем кнопку, если введено значение пресета
             buttons.forEach(b => {
                 if(parseInt(b.getAttribute('data-val')) === val) b.classList.add('active');
             });
-            
             syncAmount(val);
         });
 
-        // Проверка при потере фокуса
         manualInput.addEventListener('blur', function() {
             if (this.value < 60) {
                 this.value = 60;
@@ -303,11 +297,9 @@
             }
         });
 
-        // Обработка клика на вашу кастомную кнопку
         document.getElementById('customSubmitBtn').addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Проверка минимальной суммы
             if (manualInput.value < 60) {
                 manualInput.value = 60;
                 syncAmount(60);
@@ -315,25 +307,21 @@
                 return;
             }
             
-            // Проверка email
             const email = document.querySelector('input[name="email"]').value;
             if (!email || !email.includes('@')) {
                 alert('Введите корректный email');
                 return;
             }
             
-            // Проверка, что Telegram ID установлен
             if (!document.getElementById('customerNumberInput').value) {
                 alert('Ошибка: идентификатор пользователя не найден. Перейдите по ссылке из бота.');
                 return;
             }
             
-            // Находим оригинальную кнопку оплаты и кликаем на неё
             const originalPayBtn = document.querySelector('.ym-btn-pay');
             if (originalPayBtn) {
                 originalPayBtn.click();
             } else {
-                // Если не нашли, просто отправляем форму
                 document.getElementById('payForm').submit();
             }
         });
