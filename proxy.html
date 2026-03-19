@@ -8,7 +8,6 @@
     <style>
         :root {
             --accent: #2563eb;
-            --accent-soft: #eff6ff;
             --error: #ef4444;
             --text-dark: #0f172a;
             --text-light: #64748b;
@@ -132,6 +131,18 @@
             box-sizing: border-box;
         }
 
+        /* Скрываем родные элементы ЮKassa визуально */
+        .ym-products { display: none; }
+        .ym-input-icon-rub { display: none; }
+        .ym-payment-btn-block {
+            position: absolute;
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Наша кнопка */
         .btn-pay {
             width: 100%;
             background: var(--accent);
@@ -145,8 +156,15 @@
             transition: all 0.2s;
         }
 
-        .btn-pay:hover {
-            background: #1d4ed8;
+        .btn-pay:hover { background: #1d4ed8; }
+        .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error-msg {
+            color: var(--error);
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 12px;
+            display: none;
         }
 
         .safe-info {
@@ -156,14 +174,6 @@
             gap: 10px;
             margin-top: 24px;
             opacity: 0.5;
-        }
-
-        .ym-products, .ym-input-icon-rub, .ym-payment-btn-block {
-            opacity: 0;
-            position: absolute;
-            pointer-events: none;
-            height: 0;
-            overflow: hidden;
         }
     </style>
 </head>
@@ -190,12 +200,22 @@
             <input type="hidden" name="shopId" value="1301126">
             <input type="hidden" name="sum" id="sumInput" value="60">
 
-            <!-- ИСПРАВЛЕНО: правильный формат для передачи metadata в ЮKassa Simplepay -->
+            <!-- metadata[user_id] — правильный формат для ЮKassa SimplePay webhook -->
             <input type="hidden" name="metadata[user_id]" id="metadataUserIdInput" value="">
-
-            <!-- customerNumber для совместимости -->
             <input type="hidden" name="customerNumber" id="customerNumberInput" value="">
 
+            <!-- Скрытый блок для ЮKassa JS — он ищет эти классы -->
+            <div class="ym-payment-btn-block ym-before-line ym-align-space-between">
+                <div class="ym-input-icon-rub">
+                    <input name="sum_orig" class="ym-input ym-sum-input ym-required-input" type="number" step="any" value="60">
+                </div>
+                <button type="submit" class="ym-btn-pay ym-result-price" id="ymSubmitBtn">
+                    <span class="ym-text-crop">Оплатить</span>
+                    <span class="ym-price-output">60,00&nbsp;₽</span>
+                </button>
+            </div>
+
+            <!-- Выбор суммы -->
             <div class="presets">
                 <button type="button" class="preset-btn active" data-val="60">60 ₽</button>
                 <button type="button" class="preset-btn" data-val="100">100 ₽</button>
@@ -209,20 +229,13 @@
 
             <div class="field-group">
                 <label>📧 E-mail для чека</label>
-                <input type="email" name="email" class="email-input" placeholder="mail@example.com" required>
+                <input type="email" name="email" id="emailInput" class="email-input" placeholder="mail@example.com">
             </div>
 
-            <div class="ym-payment-btn-block ym-before-line ym-align-space-between">
-                <div class="ym-input-icon-rub">
-                    <input name="sum_orig" placeholder="0.00" class="ym-input ym-sum-input ym-required-input" type="number" step="any" value="60">
-                </div>
-                <button type="submit" class="ym-btn-pay ym-result-price">
-                    <span class="ym-text-crop">Оплатить</span>
-                    <span class="ym-price-output">60,00&nbsp;₽</span>
-                </button>
-            </div>
+            <div class="error-msg" id="errorMsg"></div>
 
-            <button type="button" class="btn-pay" id="customSubmitBtn">💳 Оплатить</button>
+            <!-- type="submit" — ЮKassa JS перехватит это событие сам -->
+            <button type="submit" class="btn-pay" id="customSubmitBtn">💳 Оплатить</button>
 
             <div class="safe-info">
                 <img src="https://yookassa.ru/integration/simplepay/img/iokassa-gray.svg" width="60" alt="ЮKassa">
@@ -233,42 +246,21 @@
 
     <script src="https://yookassa.ru/integration/simplepay/js/yookassa_construct_form.js?v=1.34.0"></script>
     <script>
-        // Получаем параметры из URL
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('user_id');
-        const amount = urlParams.get('amount');
+        const amountParam = urlParams.get('amount');
 
         if (userId) {
-            // ИСПРАВЛЕНО: name="metadata[user_id]" — именно этот формат ЮKassa передаёт в webhook как payment.metadata.user_id
             document.getElementById('metadataUserIdInput').value = userId;
-            // customerNumber — для совместимости (приходит как merchant_customer_id)
             document.getElementById('customerNumberInput').value = userId;
-            console.log('✅ Telegram ID установлен:', userId);
-        } else {
-            console.warn('⚠️ user_id не найден в URL');
         }
 
-        // Если сумма передана из бота — подставляем автоматически
-        if (amount) {
-            const val = parseInt(amount);
-            if (val >= 60) {
-                document.getElementById('manualAmount').value = val;
-                syncAmount(val);
-                // Снимаем активность с пресетов и ставим нужный
-                document.querySelectorAll('.preset-btn').forEach(b => {
-                    b.classList.remove('active');
-                    if (parseInt(b.getAttribute('data-val')) === val) b.classList.add('active');
-                });
-            }
-        }
-
-        const buttons = document.querySelectorAll('.preset-btn');
         const manualInput = document.getElementById('manualAmount');
         const sumInput = document.getElementById('sumInput');
         const priceInput = document.getElementById('priceInput');
-
         const origSumInput = document.querySelector('.ym-sum-input');
         const origPriceOutput = document.querySelector('.ym-price-output');
+        const buttons = document.querySelectorAll('.preset-btn');
 
         function syncAmount(val) {
             val = parseFloat(val) || 0;
@@ -276,10 +268,18 @@
             priceInput.value = val;
             if (origSumInput) origSumInput.value = val.toFixed(2);
             if (origPriceOutput) origPriceOutput.innerHTML = val.toFixed(2).replace('.', ',') + '&nbsp;₽';
-            if (val < 60) {
-                manualInput.classList.add('invalid');
-            } else {
-                manualInput.classList.remove('invalid');
+            manualInput.classList.toggle('invalid', val < 60);
+        }
+
+        // Подставляем сумму из URL если передана
+        if (amountParam) {
+            const val = parseInt(amountParam);
+            if (val >= 60) {
+                manualInput.value = val;
+                syncAmount(val);
+                buttons.forEach(b => {
+                    b.classList.toggle('active', parseInt(b.getAttribute('data-val')) === val);
+                });
             }
         }
 
@@ -287,56 +287,61 @@
             btn.addEventListener('click', () => {
                 buttons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const val = parseInt(btn.getAttribute('data-val'));
-                manualInput.value = val;
-                syncAmount(val);
+                syncAmount(parseInt(btn.getAttribute('data-val')));
+                manualInput.value = parseInt(btn.getAttribute('data-val'));
             });
         });
 
         manualInput.addEventListener('input', (e) => {
-            let val = parseFloat(e.target.value) || 0;
-            buttons.forEach(b => b.classList.remove('active'));
+            const val = parseFloat(e.target.value) || 0;
             buttons.forEach(b => {
-                if (parseInt(b.getAttribute('data-val')) === val) b.classList.add('active');
+                b.classList.toggle('active', parseInt(b.getAttribute('data-val')) === val);
             });
             syncAmount(val);
         });
 
-        manualInput.addEventListener('blur', function() {
-            if (this.value < 60) {
-                this.value = 60;
-                syncAmount(60);
-            }
+        manualInput.addEventListener('blur', function () {
+            if (this.value < 60) { this.value = 60; syncAmount(60); }
         });
 
-        document.getElementById('customSubmitBtn').addEventListener('click', function(e) {
-            e.preventDefault();
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 4000);
+        }
 
-            if (manualInput.value < 60) {
+        // Валидация на submit — ПЕРЕД тем как ЮKassa JS обработает форму
+        document.getElementById('payForm').addEventListener('submit', function (e) {
+            const amount = parseFloat(manualInput.value) || 0;
+            const email = document.getElementById('emailInput').value;
+            const uid = document.getElementById('metadataUserIdInput').value;
+
+            if (amount < 60) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
                 manualInput.value = 60;
                 syncAmount(60);
-                alert('Минимальная сумма — 60 рублей');
+                showError('Минимальная сумма — 60 ₽');
                 return;
             }
 
-            const email = document.querySelector('input[name="email"]').value;
             if (!email || !email.includes('@')) {
-                alert('Введите корректный email');
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                showError('Введите корректный email');
                 return;
             }
 
-            if (!document.getElementById('metadataUserIdInput').value) {
-                alert('Ошибка: идентификатор пользователя не найден. Перейдите по ссылке из бота.');
+            if (!uid) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                showError('Ошибка: перейдите по ссылке из бота');
                 return;
             }
 
-            const originalPayBtn = document.querySelector('.ym-btn-pay');
-            if (originalPayBtn) {
-                originalPayBtn.click();
-            } else {
-                document.getElementById('payForm').submit();
-            }
-        });
+            // Всё ок — ЮKassa JS сам перехватит submit и откроет форму оплаты
+        }, true); // true = capture phase, срабатывает ДО обработчиков ЮKassa
     </script>
 </body>
 </html>
